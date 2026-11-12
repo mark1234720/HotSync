@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HotSync · world fire map</title>
+<link rel="stylesheet" href="styles/style.css">
+</head>
+
+
+<body>
+
+<main>
+<h1>🔥 HotSync world map</h1>
+
+
+<p class="mut">Click anywhere on land. HotSync harmonizes MODIS and VIIRS hot spots for that place and builds its fire calendar, unusual days and critical burning windows.</p>
+<section class="card">
+
+  <div class="ctl"><span class="mut">Jump to:</span><span id="pre" class="ctl" style="margin:0"></span>
+  <label class="mut">Area size <input type="range" id="sz" min="2" max="10" step="1" value="5"> <span id="szv">5°</span></label><button class="g" id="zi" aria-label="Zoom in">＋</button><button class="g" id="zo" aria-label="Zoom out">－</button><button class="g" id="zr">Full world</button></div>
+  
+
+  <canvas id="map"></canvas>
+<p class="mut" id="hov">Scroll to zoom, drag to pan, click to analyze. Glow = fire activity per 5° cell (modelled in demo mode).</p>
+<details><summary class="mut">Use real NASA FIRMS data instead</summary>
+<div class="ctl" style="margin-top:8px"><label class="mut">MODIS CSV <input type="file" id="fm" accept=".csv"></label><label class="mut">VIIRS CSV <input type="file" id="fv" accept=".csv"></label><button id="run" class="g">Load</button><button id="demo" class="g">Back to demo</button></div></details>
+<details id="live" open><summary class="mut">Live NASA FIRMS feed (continuous)</summary>
+<div class="ctl" style="margin-top:8px"><label class="mut">MAP_KEY <input type="password" id="key" placeholder="paste your FIRMS key" size="28" autocomplete="off"></label>
+<label class="mut">Refresh <select id="ivl"><option value="0">manual</option><option value="10">10 min</option><option value="30" selected>30 min</option><option value="60">60 min</option></select></label>
+<label class="mut"><input type="checkbox" id="rem"> remember keys on this device</label>
+<button id="go">Start live</button><button id="stop" class="g">Stop</button><a class="mut" href="https://firms.modaps.eosdis.nasa.gov/api/map_key/" target="_blank" rel="noopener">Get a free key</a></div>
+<p class="mut" id="lst">Not connected. Pulls MODIS + VIIRS near-real-time detections (last 10 days) for the selected area and keeps adding new ones.</p></details>
+<p class="mut" id="msg"></p></section>
+<h2 id="sel" style="margin-top:14px"></h2>
+<section class="stats" id="stats"></section>
+<section class="card"><h2>Burning‑activity calendar</h2>
+<div class="ctl"><label><input type="radio" name="md" value="hm" checked> Harmonized</label><label><input type="radio" name="md" value="raw"> Raw (MODIS + VIIRS added)</label></div>
+<canvas id="cal"></canvas><p class="mut" id="tip"></p></section>
+<section class="card"><h2>Harmonized FRP calendar</h2><canvas id="frpCal"></canvas><p class="mut" id="frpTip">Daily sum of peak-overpass FRP per active grid cell, in MW. This is not energy released over the day.</p></section>
+<div class="row">
+<section class="card"><h2>Critical burning windows</h2>
+<label class="mut">Probability threshold <input type="range" id="pt" min=".3" max=".9" step=".05" value=".5"></label>
+<canvas id="win"></canvas><ul id="wins"></ul></section>
+<section class="card"><h2>Unusual activity</h2><p class="mut">Harmonized days far above the same season in other years.</p><ol id="anom"></ol></section></div>
+<section class="card"><h2>Method</h2>
+<p class="mut">HotSync filters low-confidence detections, then aggregates both sensors onto the same ~2 km grid and UTC day. Activity is measured in unique active grid-cell days, not raw pixel detections. During the overlap, the union of MODIS and VIIRS active cells is the reference activity count; sensor-specific scale factors estimate the union count from MODIS-only or VIIRS-only observations. FRP is aggregated within each cell and 90-minute acquisition-time bin; the maximum bin sum is retained for that cell-day. On matched cell-days with acquisition times within 180 minutes, a robust median ratio converts VIIRS FRP to a MODIS-equivalent scale. Harmonized FRP averages the two estimates where both exist and uses the calibrated sensor estimate where only one exists. FRP is reported as a daily sum of cell-day peak observations (MW), not daily energy. The method assumes both uploaded CSVs are complete archive exports over their date ranges; detections alone cannot prove that a satellite observed a day with zero fires. These are exploratory estimates, not ground truth. The 375 m VIIRS product has different detection characteristics from MODIS, and some platform/product files may not provide FRP.</p></section>
+</main>
+<button id="cb" aria-label="Open assistant">💬</button>
+<aside id="cp" hidden><header><b>HotSync assistant</b><button class="g" id="cx" aria-label="Close">✕</button></header>
+<details style="padding:6px 12px;border-bottom:1px solid var(--ln)"><summary class="mut">Connect Claude (optional)</summary><input type="password" id="aik" placeholder="Anthropic API key" style="width:100%;box-sizing:border-box;margin-top:6px" autocomplete="off"><p class="mut">Sent only to api.anthropic.com from your browser. Without it, answers come from the data on this page.</p></details>
+<div id="cl"></div>
+<div id="cs" class="ctl"><button class="g" data-q="Summarize this area">Summary</button><button class="g" data-q="Any unusual days?">Unusual days</button><button class="g" data-q="When are the critical burning windows?">Burning windows</button></div>
+<div id="cq"><input id="ci" placeholder="Ask about this area…" autocomplete="off"><button id="cg">Send</button></div></aside>
+
+</body>
+<script src="script/scripts.js"></script>
+</html>

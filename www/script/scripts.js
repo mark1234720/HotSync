@@ -1,58 +1,12 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>HotSync · world fire map</title>
-<style>
-:root{--bg:#faf8f5;--card:#fff;--ink:#1d1b19;--mut:#6b655e;--ln:#e4ded6;--acc:#d9480f;--mod:#e8590c;--vir:#5f3dc4;--hm:#0b7285;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16140f;--card:#1f1c17;--ink:#f1ede6;--mut:#a39b90;--ln:#37322a;--acc:#ff8a4c;--mod:#ff922b;--vir:#9775fa;--hm:#3bc9db}}
-:root[data-theme="dark"]{--bg:#16140f;--card:#1f1c17;--ink:#f1ede6;--mut:#a39b90;--ln:#37322a;--acc:#ff8a4c;--mod:#ff922b;--vir:#9775fa;--hm:#3bc9db}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
-main{max-width:1150px;margin:0 auto;padding:16px}
-h1{margin:0;font-size:26px}h2{margin:0 0 8px;font-size:16px}p{margin:4px 0}
-.mut{color:var(--mut);font-size:13px}
-.card{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:14px;margin-top:14px;min-width:0}
-.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:0 14px}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:14px}
-.stat{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:10px}.stat b{display:block;font-size:22px}
-canvas{width:100%;display:block}#map{cursor:crosshair}
-button,input{font:inherit;color:inherit}
-button{background:var(--acc);color:var(--bg);border:0;border-radius:8px;padding:5px 11px;cursor:pointer}
-button.g{background:none;border:1px solid var(--ln);color:var(--ink)}
-.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
-ol,ul{margin:6px 0 0;padding-left:20px}
-</style></head><body><main>
-<h1>🔥 HotSync world map</h1>
-<p class="mut">Click anywhere on land. HotSync harmonizes MODIS and VIIRS hot spots for that place and builds its fire calendar, unusual days and critical burning windows.</p>
-<section class="card">
-<div class="ctl"><span class="mut">Jump to:</span><span id="pre" class="ctl" style="margin:0"></span>
-<label class="mut">Area size <input type="range" id="sz" min="2" max="10" step="1" value="5"> <span id="szv">5°</span></label></div>
-<canvas id="map"></canvas>
-<p class="mut" id="hov">Colour = typical fire activity per 5° cell (synthetic model). Hover for coordinates.</p>
-<details><summary class="mut">Use real NASA FIRMS data instead</summary>
-<div class="ctl" style="margin-top:8px"><label class="mut">MODIS CSV <input type="file" id="fm" accept=".csv"></label><label class="mut">VIIRS CSV <input type="file" id="fv" accept=".csv"></label><button id="run" class="g">Load</button><button id="demo" class="g">Back to demo</button></div></details>
-<p class="mut" id="msg"></p></section>
-<h2 id="sel" style="margin-top:14px"></h2>
-<section class="stats" id="stats"></section>
-<section class="card"><h2>Burning‑activity calendar</h2>
-<div class="ctl"><label><input type="radio" name="md" value="hm" checked> Harmonized</label><label><input type="radio" name="md" value="raw"> Raw (MODIS + VIIRS added)</label></div>
-<canvas id="cal"></canvas><p class="mut" id="tip"></p></section>
-<section class="card"><h2>Harmonized FRP calendar</h2><canvas id="frpCal"></canvas><p class="mut" id="frpTip">Daily sum of peak-overpass FRP per active grid cell, in MW. This is not energy released over the day.</p></section>
-<div class="row">
-<section class="card"><h2>Critical burning windows</h2>
-<label class="mut">Probability threshold <input type="range" id="pt" min=".3" max=".9" step=".05" value=".5"></label>
-<canvas id="win"></canvas><ul id="wins"></ul></section>
-<section class="card"><h2>Unusual activity</h2><p class="mut">Harmonized days far above the same season in other years.</p><ol id="anom"></ol></section></div>
-<section class="card"><h2>Method</h2>
-<p class="mut">HotSync filters low-confidence detections, then aggregates both sensors onto the same ~2 km grid and UTC day. Activity is measured in unique active grid-cell days, not raw pixel detections. During the overlap, the union of MODIS and VIIRS active cells is the reference activity count; sensor-specific scale factors estimate the union count from MODIS-only or VIIRS-only observations. FRP is aggregated within each cell and 90-minute acquisition-time bin; the maximum bin sum is retained for that cell-day. On matched cell-days with acquisition times within 180 minutes, a robust median ratio converts VIIRS FRP to a MODIS-equivalent scale. Harmonized FRP averages the two estimates where both exist and uses the calibrated sensor estimate where only one exists. FRP is reported as a daily sum of cell-day peak observations (MW), not daily energy. The method assumes both uploaded CSVs are complete archive exports over their date ranges; detections alone cannot prove that a satellite observed a day with zero fires. These are exploratory estimates, not ground truth. The 375 m VIIRS product has different detection characteristics from MODIS, and some platform/product files may not provide FRP.</p></section>
-</main>
-<script>
 const $=s=>document.querySelector(s),css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const DAY=864e5,utc=(y,d)=>Math.floor(Date.UTC(y,0,d)/DAY);
-let ROWS=[],YS=[2022,2023,2024,2025],AOI=null,REAL=false,S={},ST={},AN=[],PR=[],MODE='hm',P={},tm,HEAT=[],HMX=1,HOV=null,SEL=null;
+let ROWS=[],YS=[2022,2023,2024,2025],AOI=null,REAL=false,S={},ST={},AN=[],PR=[],MODE='hm',P={},tm,HEAT=[],HMX=1,HOV=null,SEL=null,BK='',BC=null,WS=[],LIVE=false,LT=0,DR=null,LSEEN=new Set(),CH=[],V;
 const TIP='Hover the calendar for details. Outlined cells = unusual activity.';
 const mo=d=>new Date(Date.UTC(2023,0,d)).toLocaleDateString('en-GB',{day:'numeric',month:'short',timeZone:'UTC'});
 const inA=(o,a=AOI)=>!a||(o.lat>=a.la0&&o.lat<=a.la1&&o.lon>=a.lo0&&o.lon<=a.lo1);
 const pal=()=>{for(const k of['mut','ln','acc','mod','vir','hm','ink','card'])P[k]=css('--'+k)};
 const f=v=>v==v?Math.round(v):'n/a';
-const LAND=[
+let LAND=[
 [-168,66,-162,70,-141,70,-115,68,-95,72,-82,69,-80,63,-94,59,-82,55,-79,52,-78,62,-70,60,-62,58,-56,52,-66,45,-70,42,-76,38,-81,31,-80,26,-83,29,-90,30,-97,27,-97,21,-90,21,-87,21,-88,16,-83,10,-79,9,-83,8,-86,12,-92,15,-105,20,-110,24,-112,29,-115,30,-110,23,-117,33,-121,35,-124,40,-124,47,-130,55,-140,60,-152,60,-165,55,-158,58,-165,62],
 [-73,78,-60,82,-30,83,-20,75,-22,70,-40,65,-44,60,-52,65,-58,75],
 [-80,9,-72,12,-62,10,-52,5,-50,0,-35,-6,-39,-14,-41,-22,-48,-26,-54,-34,-58,-38,-65,-42,-68,-52,-70,-55,-74,-50,-73,-40,-71,-30,-70,-18,-76,-14,-81,-5,-80,0,-78,5],
@@ -61,7 +15,7 @@ const LAND=[
 [114,-22,122,-18,130,-12,136,-12,137,-16,142,-11,146,-19,153,-26,150,-37,141,-38,135,-35,129,-32,115,-34,114,-26],
 [44,-25,50,-15,49,-12,44,-17],[130,31,135,34,141,38,142,44,140,41,133,35],[-5,50,1,51,-2,57,-6,58],
 [109,1,117,7,119,1,116,-4,110,-3],[95,5,104,-2,106,-6,100,-1],[131,-1,141,-3,150,-10,141,-9],[166,-46,174,-41,178,-38,172,-35,170,-44]
-].map(a=>a.map((v,i)=>v));
+].map(a=>a.map((v,i)=>v));let DRAW=LAND;
 function inLand(lo,la){for(const p of LAND){let c=false;for(let i=0,j=p.length-2;i<p.length;j=i,i+=2){const xi=p[i],yi=p[i+1],xj=p[j],yj=p[j+1];if((yi>la)!=(yj>la)&&lo<(xj-xi)*(la-yi)/(yj-yi)+xi)c=!c}if(c)return true}return false}
 const hs=(a,b)=>{let h=Math.imul((a*7919+b*104729)|0,2654435761);h^=h>>>15;h=Math.imul(h,2246822519);h^=h>>>13;return(h>>>0)/4294967296};
 function fac(la,lo){let f=.2+1.8*hs(Math.round(la/5),Math.round(lo/5));
@@ -111,27 +65,36 @@ function parse(t,s){
  return out
 }
 
-const CL=-60,CT=85,CN=5,NX=72,NY=29;let LC=[];
+const CL=-60,CT=85,CN=5,NX=72,NY=29;let LC=[];V={lo0:-180,lo1:180,la0:CL,la1:CT};
 function heat(){
  if(!LC.length)for(let j=0;j<NY;j++)for(let i=0;i<NX;i++)LC.push(inLand(-180+CN*i+2.5,CL+CN*j+2.5));
  HEAT=[];HMX=1e-9;const cnt=new Array(NX*NY).fill(0);
  if(REAL)for(const o of ROWS){const i=Math.floor((o.lon+180)/CN),j=Math.floor((o.lat-CL)/CN);if(i>=0&&i<NX&&j>=0&&j<NY)cnt[j*NX+i]++}
  for(let j=0;j<NY;j++)for(let i=0;i<NX;i++){let v=0;
   if(REAL)v=cnt[j*NX+i];else if(LC[j*NX+i]){const la=CL+CN*j+2.5,lo=-180+CN*i+2.5;for(let d=1;d<365;d+=20)v+=lam(la,lo,d,1)/18}
-  HEAT.push(v);if(v>HMX)HMX=v}}
+  HEAT.push(v);if(v>HMX)HMX=v}BK=''}
+function base(x,dp,w,h,X,Y,sx,W){
+ x.scale(dp,dp);const dk=parseInt(P.card.slice(1,3),16)<128;
+ let g=x.createLinearGradient(0,0,0,h);g.addColorStop(0,dk?'#0f3347':'#c9e8f5');g.addColorStop(1,dk?'#081a27':'#7fbfe0');x.fillStyle=g;x.fillRect(0,0,w,h);
+ const st=W>120?30:W>50?10:5;x.lineWidth=.5;x.strokeStyle=dk?'rgba(255,255,255,.1)':'rgba(255,255,255,.55)';x.fillStyle=dk?'rgba(255,255,255,.5)':'rgba(20,60,90,.65)';x.font='10px system-ui';
+ for(let lo=Math.ceil(V.lo0/st)*st;lo<=V.lo1;lo+=st){x.beginPath();x.moveTo(X(lo),0);x.lineTo(X(lo),h);x.stroke();x.fillText(lo+'°',X(lo)+3,h-4)}
+ for(let la=Math.ceil(V.la0/st)*st;la<=V.la1;la+=st){x.beginPath();x.moveTo(0,Y(la));x.lineTo(w,Y(la));x.stroke();x.fillText(la+'°',3,Y(la)-3)}
+ const C=dk?['#3a4448','#3d5143','#2d5a3a','#4a6535','#6e5f3a','#6a5a35','#2f6a3a','#1f5a35','#2f6339','#6a5c36','#5f5a37','#3b5a3a','#444c50']:['#eef2f3','#c9dcc0','#7fae6a','#a9c274','#e4cf94','#d8c27c','#6fb25a','#3f9a4f','#68ae57','#d9c585','#c9c080','#8fb577','#dfe6e8'],
+  F=[0,.1,.21,.31,.39,.48,.55,.6,.655,.74,.81,.9,1],lg=x.createLinearGradient(0,Y(CT),0,Y(CL));F.forEach((f,i)=>lg.addColorStop(f,C[i]));
+ x.save();x.shadowColor='rgba(0,0,0,.3)';x.shadowBlur=8;x.fillStyle=lg;x.beginPath();
+ for(const p of DRAW){for(let i=0;i<p.length;i+=2)i?x.lineTo(X(p[i]),Y(p[i+1])):x.moveTo(X(p[i]),Y(p[i+1]));x.closePath()}
+ x.fill();x.restore();x.strokeStyle=dk?'rgba(255,255,255,.3)':'rgba(40,60,50,.5)';x.lineWidth=.6;x.stroke();
+ HEAT.forEach((v,k)=>{if(v<=0)return;const t=Math.sqrt(v/HMX),cx=X(-180+CN*((k%NX)+.5)),cy=Y(CL+CN*(((k/NX)|0)+.5)),r=Math.max(CN*sx*.95,8),hu=48-48*t,gr=x.createRadialGradient(cx,cy,0,cx,cy,r);
+  gr.addColorStop(0,`hsla(${hu},100%,55%,${.35+.6*t})`);gr.addColorStop(.5,`hsla(${hu},100%,50%,${.18+.3*t})`);gr.addColorStop(1,`hsla(${hu},100%,50%,0)`);x.fillStyle=gr;x.fillRect(cx-r,cy-r,2*r,2*r)});
+ if(REAL&&ROWS.length<6e4)for(const o of ROWS){const px=X(o.lon),py=Y(o.lat);if(px<0||py<0||px>w||py>h)continue;x.fillStyle=o.s==='V'?'#ffd43b':'#ff5a1f';x.fillRect(px-1,py-1,2,2)}}
 function drawMap(){
- const c=$('#map'),dp=devicePixelRatio||1,w=c.clientWidth,h=w*(CT-CL)/360;c.width=w*dp;c.height=h*dp;c.style.height=h+'px';
- const x=c.getContext('2d');x.scale(dp,dp);const X=lo=>(lo+180)/360*w,Y=la=>(CT-la)/(CT-CL)*h;
- x.fillStyle=P.card;x.fillRect(0,0,w,h);x.strokeStyle=P.ln;x.lineWidth=.5;
- for(let lo=-180;lo<=180;lo+=30){x.beginPath();x.moveTo(X(lo),0);x.lineTo(X(lo),h);x.stroke()}
- for(let la=-60;la<=80;la+=30){x.beginPath();x.moveTo(0,Y(la));x.lineTo(w,Y(la));x.stroke()}
- x.fillStyle=P.ln;x.strokeStyle=P.mut;x.lineWidth=.7;
- for(const p of LAND){x.beginPath();for(let i=0;i<p.length;i+=2)i?x.lineTo(X(p[i]),Y(p[i+1])):x.moveTo(X(p[i]),Y(p[i+1]));x.closePath();x.fill();x.stroke()}
- x.fillStyle=P.acc;
- HEAT.forEach((v,k)=>{if(v<=0)return;const i=k%NX,j=(k/NX)|0;x.globalAlpha=.12+.83*Math.sqrt(v/HMX);x.fillRect(X(-180+CN*i),Y(CL+CN*(j+1)),CN/360*w+.5,CN/(CT-CL)*h+.5)});
- x.globalAlpha=1;x.lineWidth=2;
- if(HOV){x.strokeStyle=P.mut;x.strokeRect(X(HOV.lo-HOV.s/2),Y(HOV.la+HOV.s/2),HOV.s/360*w,HOV.s/(CT-CL)*h)}
- if(AOI){x.strokeStyle=P.hm;x.lineWidth=2.5;x.strokeRect(X(AOI.lo0),Y(AOI.la1),(AOI.lo1-AOI.lo0)/360*w,(AOI.la1-AOI.la0)/(CT-CL)*h)}}
+ const c=$('#map'),dp=devicePixelRatio||1,w=c.clientWidth,h=w*(CT-CL)/360,W=V.lo1-V.lo0,sx=w/W,sy=h/(V.la1-V.la0),X=lo=>(lo-V.lo0)*sx,Y=la=>(V.la1-la)*sy;
+ c.width=w*dp;c.height=h*dp;c.style.height=h+'px';
+ const key=[w,dp,V.lo0,V.la1,W,P.card,DRAW.length,ROWS.length].join('|');
+ if(key!==BK||!BC){BK=key;BC=document.createElement('canvas');BC.width=w*dp;BC.height=h*dp;base(BC.getContext('2d'),dp,w,h,X,Y,sx,W)}
+ const x=c.getContext('2d');x.drawImage(BC,0,0);x.scale(dp,dp);
+ if(HOV){x.strokeStyle='rgba(255,255,255,.95)';x.lineWidth=1.5;x.setLineDash([5,3]);x.strokeRect(X(HOV.lo-HOV.s/2),Y(HOV.la+HOV.s/2),HOV.s*sx,HOV.s*sy);x.setLineDash([])}
+ if(AOI){const a=[X(AOI.lo0),Y(AOI.la1),(AOI.lo1-AOI.lo0)*sx,(AOI.la1-AOI.la0)*sy];x.strokeStyle='rgba(255,255,255,.85)';x.lineWidth=4.5;x.strokeRect(...a);x.strokeStyle=P.hm;x.lineWidth=2.5;x.strokeRect(...a)}}
 
 const GRID_DEG=.02,FRP_BIN_MIN=90,FRP_MATCH_MIN=180;
 function aggregateSensor(rows,sensor){
@@ -243,7 +206,7 @@ function drawFrp(){
 }
 function drawWin(){
  const[x,w,h]=cv('#win',150),L=34,thr=+$('#pt').value;axis(x,w,h,L);
- const X=i=>L+(w-L-6)*(i+1)/366,Y=v=>h-18-(h-26)*v,segs=[];let st=-1;
+ const X=i=>L+(w-L-6)*(i+1)/366,Y=v=>h-18-(h-26)*v,segs=WS=[];let st=-1;
  PR.forEach((p,i)=>{if(p>=thr&&st<0)st=i;if((p<thr||i==365)&&st>=0){const e=p<thr?i-1:i;if(e-st>=4)segs.push([st,e]);st=-1}});
  x.fillStyle=P.acc;x.globalAlpha=.22;for(const[a,b]of segs)x.fillRect(X(a),0,X(b)-X(a),h-18);x.globalAlpha=1;
  x.strokeStyle=P.hm;x.lineWidth=2;x.beginPath();PR.forEach((p,i)=>i?x.lineTo(X(i),Y(p)):x.moveTo(X(i),Y(p)));x.stroke();
@@ -262,13 +225,24 @@ function analyze(){
  $('#tip').textContent=TIP;drawCal();drawFrp();drawWin()}
 function pick(la,lo){
  const s=+$('#sz').value;
- if(!REAL&&!inLand(lo,la)){$('#msg').textContent='That spot is open water. Pick a land area.';return}
+ if(!REAL&&!LIVE&&!inLand(lo,la)){$('#msg').textContent='That spot is open water. Pick a land area.';return}
  AOI={la0:la-s/2,la1:la+s/2,lo0:lo-s/2,lo1:lo+s/2};
+ if(LIVE){ROWS=[];LSEEN.clear();REAL=true;YS=[new Date().getUTCFullYear()];analyze();liveFetch();return}
  if(!REAL){ROWS=gen(AOI);$('#msg').textContent='Demo mode: detections for this area come from a seasonal model, not real observations.'}
  analyze()}
-const mp=$('#map'),at=e=>{const b=mp.getBoundingClientRect();return{lo:(e.clientX-b.left)/b.width*360-180,la:CT-(e.clientY-b.top)/b.height*(CT-CL)}};
-mp.onclick=e=>{const p=at(e);pick(p.la,p.lo)};
-mp.onpointermove=e=>{const p=at(e);HOV={...p,s:+$('#sz').value};drawMap();
+const mp=$('#map'),at=e=>{const b=mp.getBoundingClientRect();return{lo:V.lo0+(e.clientX-b.left)/b.width*(V.lo1-V.lo0),la:V.la1-(e.clientY-b.top)/b.height*(V.la1-V.la0)}};
+function setV(a,t,nw){const nh=nw*(CT-CL)/360;a=Math.max(-180,Math.min(180-nw,a));t=Math.max(CL+nh,Math.min(CT,t));V={lo0:a,lo1:a+nw,la0:t-nh,la1:t};drawMap()}
+function zoom(f,cx=.5,cy=.5){const W=V.lo1-V.lo0,H=V.la1-V.la0,nw=Math.min(360,Math.max(6,W/f)),nh=nw*(CT-CL)/360;setV(V.lo0+W*cx-nw*cx,V.la1-H*cy+nh*cy,nw)}
+function zoomTo(la,lo,s){setV(lo-s/2,la+s*(CT-CL)/720,s)}
+mp.onclick=e=>{if(DR&&DR.m>4)return;const p=at(e);pick(p.la,p.lo)};
+mp.onpointerdown=e=>{DR={x:e.clientX,y:e.clientY,v:{...V},m:0}};
+mp.onpointerup=()=>setTimeout(()=>DR=null,0);
+mp.onwheel=e=>{e.preventDefault();const b=mp.getBoundingClientRect();zoom(e.deltaY<0?1.4:1/1.4,(e.clientX-b.left)/b.width,(e.clientY-b.top)/b.height)};
+$('#zi').onclick=()=>zoom(1.6);$('#zo').onclick=()=>zoom(1/1.6);$('#zr').onclick=()=>{V={lo0:-180,lo1:180,la0:CL,la1:CT};drawMap()};
+mp.onpointermove=e=>{
+ if(DR&&e.buttons){const b=mp.getBoundingClientRect(),dx=e.clientX-DR.x,dy=e.clientY-DR.y;DR.m=Math.max(DR.m,Math.abs(dx)+Math.abs(dy));
+  if(DR.m>4){const W=DR.v.lo1-DR.v.lo0,H=DR.v.la1-DR.v.la0;setV(DR.v.lo0-dx/b.width*W,DR.v.la1+dy/b.height*H,W);return}}
+ const p=at(e);HOV={...p,s:+$('#sz').value};drawMap();
  const i=Math.floor((p.lo+180)/CN),j=Math.floor((p.la-CL)/CN),v=HEAT[j*NX+i];
  $('#hov').textContent=`${fmt(p.la,'N','S')}, ${fmt(p.lo,'E','W')} · ${inLand(p.lo,p.la)||REAL?'click to analyze':'open water'}${v>0?' · cell activity '+(v/HMX*100).toFixed(0)+'% of the maximum':''}`};
 mp.onpointerleave=()=>{HOV=null;drawMap()};
@@ -278,14 +252,70 @@ document.querySelectorAll('[name=md]').forEach(r=>r.onchange=()=>{MODE=r.value;p
 $('#cal').onpointermove=e=>{if(!AOI)return;const b=e.target.getBoundingClientRect(),cw=(b.width-44)/366,y=YS[Math.floor((e.clientY-b.top)/24)],i=Math.floor((e.clientX-b.left-44)/cw);
  if(y==null||i<0||i>365){$('#tip').textContent=TIP;return}const s=S[y];
  $('#tip').textContent=`${y} · ${mo(i+1)}: harmonized activity ${f(s.hm[i])} cell-days · MODIS ${f(s.mod[i])} · VIIRS ${f(s.vir[i])}`;$('#frpTip').textContent=`${y} · ${mo(i+1)}: harmonized FRP ${Number.isFinite(s.frpHM[i])?s.frpHM[i].toFixed(1)+' MW':'n/a'} · MODIS ${Number.isFinite(s.frpM[i])?s.frpM[i].toFixed(1)+' MW':'n/a'} · VIIRS ${Number.isFinite(s.frpV[i])?s.frpV[i].toFixed(1)+' MW':'n/a'} (raw sensor scales)`};
-$('#pre').innerHTML=[['Amazon arc',-9,-55],['Sahel',12,2],['Congo basin',-4,22],['California',37,-120],['Siberia',58,110],['N. Australia',-13,132],['Greece',39,22]].map(([n,a,o])=>`<button class="g" data-a="${a}" data-o="${o}">${n}</button>`).join('');
-$('#pre').onclick=e=>{const b=e.target.closest('button');if(b)pick(+b.dataset.a,+b.dataset.o)};
-$('#demo').onclick=()=>{REAL=false;YS=[2022,2023,2024,2025];ROWS=[];AOI=null;heat();$('#msg').textContent='Demo mode: click land to generate that place’s detections (VIIRS exists only from 2023).';analyze();pick(-13,132)};
+const PRE=[['Amazon arc',-9,-55],['Sahel',12,2],['Congo basin',-4,22],['California',37,-120],['Siberia',58,110],['N. Australia',-13,132],['Greece',39,22]];$('#pre').innerHTML=PRE.map(([n,a,o])=>`<button class="g" data-a="${a}" data-o="${o}">${n}</button>`).join('');
+$('#pre').onclick=e=>{const b=e.target.closest('button');if(b){pick(+b.dataset.a,+b.dataset.o);zoomTo(+b.dataset.a,+b.dataset.o,45)}};
+$('#demo').onclick=()=>{stopLive();REAL=false;YS=[2022,2023,2024,2025];ROWS=[];AOI=null;heat();$('#msg').textContent='Demo mode: click land to generate that place’s detections (VIIRS exists only from 2023).';analyze();pick(-13,132)};
 $('#run').onclick=async()=>{try{const a=$('#fm').files[0],b=$('#fv').files[0];if(!a||!b)throw Error('Choose both a MODIS and a VIIRS FIRMS CSV first.');
  const r=parse(await a.text(),'M').concat(parse(await b.text(),'V'));if(!r.length)throw Error('No usable rows found.');
- REAL=true;ROWS=r;YS=[...new Set(r.map(o=>o.y))].sort((a,b)=>a-b);AOI=null;heat();
+ stopLive();REAL=true;ROWS=r;YS=[...new Set(r.map(o=>o.y))].sort((a,b)=>a-b);AOI=null;heat();
  $('#msg').textContent=`Real data: ${a.name} + ${b.name} (files stay in your browser). The map now shows your detections; click anywhere to analyze.`;analyze()}catch(e){$('#msg').textContent=e.message}};
 addEventListener('resize',()=>{clearTimeout(tm);tm=setTimeout(analyze,150)});
 matchMedia('(prefers-color-scheme:dark)').onchange=analyze;
+
+/* ---- Live NASA FIRMS feed ---- */
+const KEYK='hotsync.key',AIK='hotsync.ai';
+const store=(k,v)=>{try{$('#rem').checked?localStorage.setItem(k,v):localStorage.removeItem(k)}catch(e){}};
+try{const k=localStorage.getItem(KEYK),a=localStorage.getItem(AIK);if(k){$('#key').value=k;$('#rem').checked=true}if(a){$('#aik').value=a;$('#rem').checked=true}}catch(e){}
+$('#key').onchange=$('#aik').onchange=$('#rem').onchange=()=>{store(KEYK,$('#key').value.trim());store(AIK,$('#aik').value.trim())};
+function stopLive(){const was=LIVE;LIVE=false;clearInterval(LT);LT=0;if(was)$('#lst').textContent='Live feed stopped. Data already loaded stays on screen.'}
+async function liveFetch(){
+ if(!LIVE||!AOI)return;const A=AOI,k=$('#key').value.trim(),cp=(v,m)=>Math.max(-m,Math.min(m,v)).toFixed(3),
+  box=[cp(A.lo0,180),cp(A.la0,90),cp(A.lo1,180),cp(A.la1,90)].join(','),ds=n=>new Date(Date.now()-n*DAY).toISOString().slice(0,10),st=$('#lst');
+ st.textContent='Fetching latest detections…';
+ try{let add=0;
+  for(const[src,s]of[['MODIS_NRT','M'],['VIIRS_SNPP_NRT','V']])for(const n of[9,4]){
+   const r=await fetch(`https://firms.modaps.eosdis.nasa.gov/api/area/csv/${encodeURIComponent(k)}/${src}/${box}/5/${ds(n)}`),tx=await r.text();
+   if(A!==AOI||!LIVE)return;
+   if(!r.ok||!/latitude/i.test(tx.split('\n')[0]))throw Error(tx.trim().slice(0,140)||'HTTP '+r.status);
+   if(tx.trim().split('\n').length>1)for(const o of parse(tx,s)){const q=s+o.lat+o.lon+o.day+o.minute;if(!LSEEN.has(q)){LSEEN.add(q);ROWS.push(o);add++}}}
+  REAL=true;YS=[...new Set(ROWS.map(o=>o.y))].sort((a,b)=>a-b);if(!YS.length)YS=[new Date().getUTCFullYear()];heat();analyze();
+  st.textContent=`Live · ${ROWS.length.toLocaleString()} detections in this area (${add} new) · updated ${new Date().toLocaleTimeString()}`
+ }catch(e){st.textContent=e instanceof TypeError?'Could not reach NASA FIRMS (offline, or the browser blocked the request).':'FIRMS error: '+e.message}}
+function armLive(){clearInterval(LT);const m=+$('#ivl').value;LT=m?setInterval(liveFetch,m*6e4):0}
+$('#go').onclick=()=>{if(!$('#key').value.trim()){$('#lst').textContent='Paste your FIRMS MAP_KEY first (free, takes a minute).';return}
+ store(KEYK,$('#key').value.trim());LIVE=true;REAL=true;ROWS=[];LSEEN.clear();YS=[new Date().getUTCFullYear()];armLive();
+ if(AOI)liveFetch();else{$('#lst').textContent='Live feed ready. Click the map to choose an area.';heat();analyze()}};
+$('#stop').onclick=stopLive;$('#ivl').onchange=()=>{if(LIVE)armLive()};
+
+/* ---- Assistant ---- */
+const cl=$('#cl'),say=(r,t)=>{const d=document.createElement('div');d.className='m '+r;d.textContent=t;cl.appendChild(d);cl.scrollTop=1e9;return d},NA='Pick an area on the map first (or say "show Greece").';
+const sum=()=>!AOI?NA:`${$('#sel').textContent}. ${REAL?'Real/live':'Demo (synthetic)'} data: ${ST.m} MODIS + ${ST.v} VIIRS raw detections → ${Math.round(ST.tot)} harmonized active cell-days. ${AN.length?`Most unusual day: ${mo(AN[0].d)} ${AN[0].y} (${Math.round(AN[0].v)} vs ~${AN[0].m.toFixed(1)} typical).`:'No unusual days stand out.'} ${WS.length?`First critical window: ${mo(WS[0][0]+1)} – ${mo(WS[0][1]+1)}.`:'No burning window clears the threshold.'}`;
+function ctx(){return{area:AOI&&$('#sel').textContent,data:REAL?'real or live FIRMS':'synthetic demo model',years:YS,stats:{modis:ST.m,viirs:ST.v,harmonizedCellDays:Math.round(ST.tot||0),frpScale:ST.frpScale},unusual:AN.slice(0,5).map(a=>({day:mo(a.d)+' '+a.y,value:Math.round(a.v),typical:+a.m.toFixed(1)})),windows:WS.map(([a,b])=>({from:mo(a+1),to:mo(b+1)})),threshold:+$('#pt').value}}
+function local(q){q=q.toLowerCase();
+ const pr=PRE.find(p=>q.includes(p[0].toLowerCase().split(/[ .]/).filter(w=>w.length>3)[0]));
+ if(pr&&/go|show|jump|take|look|zoom|move|fire|check/.test(q)){pick(pr[1],pr[2]);zoomTo(pr[1],pr[2],45);return'Jumped to '+pr[0]+'. '+sum()}
+ if(/unusual|anomal|spike|abnormal|outlier/.test(q))return!AOI?NA:AN.length?'Unusual days (vs the same season in other years):\n'+AN.slice(0,5).map(a=>`• ${mo(a.d)} ${a.y}: ${Math.round(a.v)} cell-days vs ~${a.m.toFixed(1)} typical (z ${a.z.toFixed(1)})`).join('\n'):'No unusual days stand out here.';
+ if(/window|critical|season|when|peak|risk/.test(q))return!AOI?NA:WS.length?`Critical windows at probability ≥ ${$('#pt').value}:\n`+WS.map(([a,b])=>`• ${mo(a+1)} – ${mo(b+1)} (peak ${Math.max(...PR.slice(a,b+1)).toFixed(2)})`).join('\n'):'No window reaches the current threshold. Try lowering the probability slider.';
+ if(/frp|power|intens|energy/.test(q)){if(!AOI)return NA;const mx=Math.max(0,...YS.flatMap(y=>S[y].frpHM.filter(Number.isFinite)));return`Peak harmonized FRP day: ${mx.toFixed(1)} MW (a sum of per-cell peak observations, not daily energy). VIIRS→MODIS FRP factor: ${Number.isFinite(ST.frpScale)?ST.frpScale.toFixed(2)+'×':'not calibrated yet'}.`}
+ if(/key|live|firms|api|continuous|real data/.test(q))return'Open "Live NASA FIRMS feed" under the map, paste a free MAP_KEY (firms.modaps.eosdis.nasa.gov/api/map_key), choose a refresh interval and press Start live. Then click the map: HotSync pulls the last 10 days of MODIS + VIIRS detections for that area and keeps adding new ones.';
+ if(/modis|viirs|sensor|harmon|method|how|scale/.test(q))return'HotSync puts MODIS and VIIRS on the same ~2 km grid and UTC day, counts unique active cell-days, and uses the overlap period to scale each sensor to a common baseline.'+(AOI?` Current scales: MODIS ${Number.isFinite(ST.kM)?ST.kM.toFixed(2)+'×':'n/a'}, VIIRS ${Number.isFinite(ST.kV)?ST.kV.toFixed(2)+'×':'n/a'}.`:'');
+ if(/summar|status|overview|stat|here|area|going on|hello|hi\b/.test(q))return sum();
+ return'I can summarize the selected area, list unusual days or burning windows, explain FRP and the harmonization, jump to a region ("show Greece"), or help set up the live feed. Add a Claude API key above for open-ended questions.'}
+async function claude(){const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':$('#aik').value.trim(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+ body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:600,system:'You are the assistant inside HotSync, a wildfire hot-spot explorer that harmonizes MODIS and VIIRS detections. Answer in under 120 words using CONTEXT. If the data is a synthetic demo, say so when it matters. CONTEXT: '+JSON.stringify(ctx()),messages:CH.slice(-12)})});
+ const j=await r.json();if(!r.ok)throw Error(j.error&&j.error.message||r.status);return j.content.map(c=>c.text||'').join('')}
+async function send(q){q=q.trim();if(!q)return;say('u',q);
+ if($('#aik').value.trim()){CH.push({role:'user',content:q});const w=say('b','…');
+  try{const a=await claude();CH.push({role:'assistant',content:a});w.textContent=a}catch(e){CH.pop();w.textContent='Claude request failed ('+e.message+'). Local answer:\n'+local(q)}return}
+ say('b',local(q))}
+$('#cb').onclick=()=>{const p=$('#cp');p.hidden=!p.hidden;if(!p.hidden){if(!cl.children.length)say('b','Hi! Ask me about the selected area: summary, unusual days, burning windows, FRP, or say "show Greece" to jump there.');$('#ci').focus()}};
+$('#cx').onclick=()=>$('#cp').hidden=true;
+$('#cg').onclick=()=>{const i=$('#ci');send(i.value);i.value=''};$('#ci').onkeydown=e=>{if(e.key==='Enter')$('#cg').click()};
+$('#cs').onclick=e=>{const b=e.target.closest('button');if(b)send(b.dataset.q)};
 $('#demo').click();
-</script></body></html>
+/* ---- Detailed coastlines and borders (falls back to the built-in outline if offline) ---- */
+function topo(t){const[sx,sy]=t.transform.scale,[tx,ty]=t.transform.translate,arcs=t.arcs.map(a=>{let x=0,y=0;return a.map(([dx,dy])=>[(x+=dx)*sx+tx,(y+=dy)*sy+ty])}),
+ ring=r=>{const o=[];for(const i of r){const a=i<0?arcs[~i].slice().reverse():arcs[i];for(const p of o.length?a.slice(1):a)o.push(p[0],p[1])}return o},out=[];
+ for(const g of t.objects.countries.geometries){if(g.type==='Polygon')g.arcs.forEach(r=>out.push(ring(r)));else if(g.type==='MultiPolygon')g.arcs.forEach(p=>p.forEach(r=>out.push(ring(r))))}return out}
+(async()=>{for(const u of['110m','50m']){try{const r=topo(await(await fetch(`https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-${u}.json`)).json());
+ if(u==='110m'){LAND=r;LC=[];DRAW=r;heat()}else DRAW=r;BK='';drawMap()}catch(e){break}}})();
